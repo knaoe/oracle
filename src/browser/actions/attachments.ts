@@ -1656,7 +1656,10 @@ export async function waitForAttachmentCompletion(
       const inputStateOk = value.state === "ready" || value.state === "missing";
       const inputSeenNow = inputMissing.length === 0 || fileCountSatisfied;
       const inputEvidenceOk =
-        Boolean(value.filesAttached) || Boolean(value.uploading) || fileCountSatisfied;
+        Boolean(value.filesAttached) ||
+        Boolean(value.uploading) ||
+        fileCountSatisfied ||
+        (inputSeenNow && value.state === "ready" && !value.uploading);
       const stableThresholdMs = value.uploading ? 3000 : 1500;
       if (inputSeenNow && inputStateOk && inputEvidenceOk) {
         if (inputMatchSince === null) {

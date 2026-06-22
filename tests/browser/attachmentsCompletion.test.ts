@@ -38,6 +38,31 @@ describe("attachment completion fallbacks", () => {
     useRealTime();
   });
 
+  test("waitForAttachmentCompletion resolves when a ready composer only exposes the file input name", async () => {
+    useFakeTime();
+
+    const runtime = {
+      evaluate: vi.fn().mockResolvedValue({
+        result: {
+          value: {
+            state: "ready",
+            uploading: false,
+            filesAttached: false,
+            attachedNames: [],
+            inputNames: ["oracle-attach-verify.txt"],
+            fileCount: 0,
+          },
+        },
+      }),
+    } as unknown as ChromeClient["Runtime"];
+
+    const promise = waitForAttachmentCompletion(runtime, 2_500, ["oracle-attach-verify.txt"]);
+    const assertion = expect(promise).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(3_000);
+    await assertion;
+    useRealTime();
+  });
+
   test("waitForAttachmentCompletion resolves even when uploading is flagged, once input match is stable", async () => {
     useFakeTime();
 

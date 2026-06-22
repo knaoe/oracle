@@ -711,6 +711,8 @@ type BrowserSubmissionFallback = {
   attachments: BrowserAttachment[];
 };
 
+type RemoteChromeAttachmentUploadStrategy = "local-file-input" | "remote-data-transfer";
+
 async function runSubmissionWithRecovery({
   prompt,
   attachments,
@@ -799,6 +801,13 @@ function isLocalChromeHost(host: string): boolean {
 
 export function isLocalChromeHostForTest(host: string): boolean {
   return isLocalChromeHost(host);
+}
+
+function resolveRemoteChromeAttachmentUploadStrategy(remoteChrome: {
+  host: string;
+  port: number;
+}): RemoteChromeAttachmentUploadStrategy {
+  return isLocalChromeHost(remoteChrome.host) ? "local-file-input" : "remote-data-transfer";
 }
 
 async function closeRemoteConnectionAfterRun(options: {
@@ -2945,6 +2954,7 @@ async function runRemoteBrowserMode(
         name: path.basename(a.path),
         generatedBundle: a.generatedBundle === true,
       }));
+      let inputOnlyAttachments = false;
       await clearPromptComposer(Runtime, logger);
       await ensurePromptReady(Runtime, config.inputTimeoutMs, logger);
       if (submissionAttachments.length > 0) {
@@ -2952,10 +2962,32 @@ async function runRemoteBrowserMode(
           throw new Error("Chrome DOM domain unavailable while uploading attachments.");
         }
         await clearComposerAttachments(Runtime, 5_000, logger);
-        // Use remote file transfer for remote Chrome (reads local files and injects via CDP)
-        for (const attachment of submissionAttachments) {
+        const attachmentUploadStrategy =
+          resolveRemoteChromeAttachmentUploadStrategy(remoteChromeConfig);
+        for (
+          let attachmentIndex = 0;
+          attachmentIndex < submissionAttachments.length;
+          attachmentIndex += 1
+        ) {
+          const attachment = submissionAttachments[attachmentIndex];
           logger(`Uploading attachment: ${attachment.displayPath}`);
-          await uploadAttachmentViaDataTransfer({ runtime: Runtime, dom: DOM }, attachment, logger);
+          if (attachmentUploadStrategy === "local-file-input") {
+            const uiConfirmed = await uploadAttachmentFile(
+              { runtime: Runtime, dom: DOM, input: Input },
+              attachment,
+              logger,
+              { expectedCount: attachmentIndex + 1 },
+            );
+            if (!uiConfirmed) {
+              inputOnlyAttachments = true;
+            }
+          } else {
+            await uploadAttachmentViaDataTransfer(
+              { runtime: Runtime, dom: DOM },
+              attachment,
+              logger,
+            );
+          }
           await delay(500);
         }
         // Scale timeout based on number of files: base 30s + 15s per additional file
@@ -2965,6 +2997,9 @@ async function runRemoteBrowserMode(
           Math.max(baseTimeout, 30_000) + (submissionAttachments.length - 1) * perFileTimeout;
         const attachmentWaitBudget = Math.max(config.attachmentTimeoutMs ?? 0, waitBudget);
         await waitForAttachmentCompletion(Runtime, attachmentWaitBudget, attachmentNames, logger);
+        if (inputOnlyAttachments) {
+          logger("Attachment UI did not render before send; relying on file input evidence.");
+        }
         logger("All attachments uploaded");
       }
       let baselineTurns = await readConversationTurnCount(Runtime, logger);
@@ -3646,6 +3681,7 @@ export const __test__ = {
   isManualLoginProfileInitialized,
   isImageOnlyUiChromeText,
   listIgnoredRemoteChromeFlags,
+  resolveRemoteChromeAttachmentUploadStrategy,
   resolveManualLoginWaitMs,
   shouldCloseOwnedRunTargetAfterRun,
   shouldKeepLocalBrowserOpen,
