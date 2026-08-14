@@ -323,6 +323,9 @@ export async function connectToRemoteChromeTarget(
     if (!targetId) {
       const created = await browser.Target.createTarget({
         url: options.targetUrl ?? "about:blank",
+        // Do not raise an already-running remote Chrome window when Oracle opens
+        // the dedicated tab it will attach to.
+        background: true,
       });
       targetId = created.targetId;
       logger(`Opened dedicated remote Chrome tab targeting ${options.targetUrl ?? "about:blank"}`);
@@ -410,6 +413,34 @@ function formatApprovalWait(waitMs: number): string {
   return `${waitMs}ms`;
 }
 
+// CDP.New (PUT /json/new) raises the remote Chrome window. Use the browser-level
+// WebSocket and Target.createTarget(background=true) when it is available, while
+// retaining the HTTP endpoint as a compatibility fallback.
+async function createBackgroundTarget(
+  host: string,
+  port: number,
+  url: string,
+): Promise<{ id: string }> {
+  let wsEndpoint: string | undefined;
+  try {
+    const version = (await CDP.Version({ host, port })) as { webSocketDebuggerUrl?: string };
+    wsEndpoint = version.webSocketDebuggerUrl;
+  } catch {
+    wsEndpoint = undefined;
+  }
+  if (!wsEndpoint) {
+    const fallback = await CDP.New({ host, port, url });
+    return { id: fallback.id };
+  }
+  const browser = await CDP({ target: wsEndpoint, local: true });
+  try {
+    const { targetId } = await browser.Target.createTarget({ url, background: true });
+    return { id: targetId };
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
+}
+
 async function connectToNewTarget(
   host: string,
   port: number,
@@ -418,7 +449,7 @@ async function connectToNewTarget(
   messages: TargetConnectMessages,
 ): Promise<{ client: ChromeClient; targetId: string } | null> {
   try {
-    const target = await CDP.New({ host, port, url });
+    const target = await createBackgroundTarget(host, port, url);
     try {
       const client = await CDP({ host, port, target: target.id });
       if (messages.opened) {

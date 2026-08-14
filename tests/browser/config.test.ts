@@ -132,4 +132,10 @@ describe("resolveBrowserConfig", () => {
     );
     expect(resolveBrowserConfig({ researchMode: "deep", timeoutMs: 123 }).timeoutMs).toBe(123);
   });
+
+  test("allows a Pro consultation an hour before giving up", () => {
+    expect(resolveBrowserConfig(undefined).timeoutMs).toBe(60 * 60 * 1000);
+    expect(resolveBrowserConfig({}).timeoutMs).toBe(60 * 60 * 1000);
+    expect(resolveBrowserConfig({ timeoutMs: 123 }).timeoutMs).toBe(123);
+  });
 });

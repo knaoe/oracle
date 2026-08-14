@@ -16,7 +16,8 @@ import type {
 import type { CookieParam } from "../browser/types.js";
 import { getOracleHomeDir } from "../oracleHome.js";
 
-const DEFAULT_BROWSER_TIMEOUT_MS = 1_200_000;
+// Keep this in sync with DEFAULT_BROWSER_CONFIG.timeoutMs.
+const DEFAULT_BROWSER_TIMEOUT_MS = 3_600_000;
 const DEFAULT_BROWSER_INPUT_TIMEOUT_MS = 60_000;
 const DEFAULT_BROWSER_ATTACHMENT_TIMEOUT_MS = 45_000;
 const DEFAULT_BROWSER_RECHECK_TIMEOUT_MS = 120_000;

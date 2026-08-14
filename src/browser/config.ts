@@ -34,7 +34,9 @@ export const DEFAULT_BROWSER_CONFIG: ResolvedBrowserConfig = {
   browserTabRef: null,
   url: CHATGPT_URL,
   chatgptUrl: CHATGPT_URL,
-  timeoutMs: 1_200_000,
+  // Keep browser consultations aligned with the one-hour Pro budget. The
+  // response can complete in ChatGPT after the old 20-minute capture cap.
+  timeoutMs: 3_600_000,
   debugPort: null,
   inputTimeoutMs: 60_000,
   attachmentTimeoutMs: 45_000,
