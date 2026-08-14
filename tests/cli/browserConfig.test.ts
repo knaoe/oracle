@@ -275,9 +275,9 @@ describe("buildBrowserConfig", () => {
       browserTimeout: "1h!30m",
     });
 
-    expect(config.timeoutMs).toBe(1_200_000);
+    expect(config.timeoutMs).toBe(3_600_000);
     expect(logSpy).toHaveBeenCalledWith(
-      'Warning: invalid --browser-timeout duration "1h!30m"; using fallback 1200000ms.',
+      'Warning: invalid --browser-timeout duration "1h!30m"; using fallback 3600000ms.',
     );
     logSpy.mockRestore();
   });

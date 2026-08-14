@@ -1174,3 +1174,27 @@ describe("isLocalChromeHostForTest", () => {
     },
   );
 });
+
+describe("resolveRemoteChromeAttachmentUploadStrategyForTest", () => {
+  type Strategy = (remoteChrome: { host: string; port: number }) => string;
+  const resolveStrategy = () =>
+    (
+      __test__ as unknown as {
+        resolveRemoteChromeAttachmentUploadStrategy?: Strategy;
+      }
+    ).resolveRemoteChromeAttachmentUploadStrategy;
+
+  test.each(["localhost", "127.0.0.1", "127.12.34.56", "::1", "[::1]"])(
+    "uses file input upload for loopback remote Chrome host %s",
+    (host) => {
+      expect(resolveStrategy()?.({ host, port: 9222 })).toBe("local-file-input");
+    },
+  );
+
+  test.each(["remote-host", "192.168.1.5", "10.0.0.2", "2001:db8::1"])(
+    "keeps DataTransfer upload for genuinely remote Chrome host %s",
+    (host) => {
+      expect(resolveStrategy()?.({ host, port: 9222 })).toBe("remote-data-transfer");
+    },
+  );
+});
